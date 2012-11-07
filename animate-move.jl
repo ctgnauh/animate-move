@@ -1,61 +1,55 @@
-;;; 
+;;;  animate-move.jl --- Smoothly slide windows across the screen.
+
+;; Copyright (C) 2012 Tristan Huang <tristan.j.huang@gmail.com>
+
+;; Author: Rafal Strzalinski <nablaone@gmail.com>
+;; Maintainer: Tristan Huang <tristan.j.huang@gmail.com>
+;; URL: https://github.com/aquallor/animate-move/
+;;
+;; This file is free software; you can redistribute it and/or modify it
+;; under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
+
+;; Commentary:
+;;
+;; Some functions to asynchronous animated moving windows.
+;;
+
+;; INSTALLATION:
+;;
+;; Put this file in your /sawfish/lisp/path/ and add this:
+;;
+;; (require 'animate-move)
+;; (bind-keys window-keymap
+;;	   "W-x" 'toggle-window-shaded
+;;	   "W-z" 'iconify-window
+;;	   "W-c" 'animate-center-window
+;;	   "W-C" 'center-window
+;;	   "W-k" 'delete-window
+;;	   "W-r" 'rotate-move)
+;;
+;; to your .sawfishrc file.
+;;
+
+;; Code:
+
+(require 'timers)
+(require 'sawfish.wm.misc)
+(provide 'animate-move)
+
 ;;; some misc stuff
-
-
 (defmacro dolist (spec &rest body)
   `(progn 
      (mapc #'(lambda(,(car spec)) ,@body)
 	   ,(cadr spec))
      ,(caddr spec)))
 
-
-(defun abs(x)
-  (cond
-   ((> x 0) x)
-   ((< x 0) (- x))
-   (t x)))
-
-(defun approx (x y)
-  (if (< (abs (- x y)) 2) 
-      t 
-    nil))
-
 (defun sgn(x)
   (cond 
    ((> x 0) 1)
    ((< x 0) -1)
    (t 0)))
-
-
-;;;
-;;; animate-move.jl
-;;; by Rafal Strzalinski <rstrzali@elka.pw.edu.pl>
-;;;
-;;; Some functions to asynchronous animated moving windows.
-;;; 
-;;; TODO:
-;;; - change english docs string to english 
-;;; 
-;;;  add this to your .sawfishrc 
-;;; (bind-keys window-keymap
-;;;	   "H-x" 'toggle-window-shaded
-;;;	   "H-z" 'iconify-window
-;;;	   "H-c" 'animate-center-window
-;;;	   "H-C" 'center-window
-;;;	   "H-k" 'delete-window
-;;;	   "H-r" 'rotate-move)
-;;;
-;;; ;Add this to your modmap to work windows-logo-key as Hyper
-;;;  keycode 115 = Hyper_L
-;;;  keycode 116 = Hyper_R
-;;;  clear MOD3
-;;;  add mod3 = Hyper_L  Hyper_R
-;;;
-;;; with this Windows-logo-keys become more usable
-
-(require 'timers)
-(require 'misc)
-(provide 'animate-move)
 
 (defgroup animate-move "Animate move"
   :group move)
@@ -96,9 +90,9 @@
 	      (y (cdr (window-position i)))
 	      (nx (window-get i 'animate-move-x))
 	      (ny (window-get i 'animate-move-y)))
-	  (if  (and (approx x nx) (approx y ny)) 
-	      (window-put i 'animate-move nil)
-	    (cond 
+          (if (and (eq x nx) (eq y ny))
+              (window-put i 'animate-move nil)
+            (cond 
 	     ((eq animate-move-mode 'lin) 
 	      (animate-move-step-lin-to i nx ny))
 	     (t 
@@ -112,12 +106,16 @@
 (defun animate-move-window-to (w x y) 
   (interactive "%W")
   (window-put w 'animate-move t)
-  (window-put w 'animate-move-x x)
-  (window-put w 'animate-move-y y)
+  (when (/= 0 (mod x 2))
+    (setq x (+ x 1)))
+  (when (/= 0 (mod y 2))
+    (setq y (+ y 1)))
+  (window-put w 'animate-move-x (round x))
+  (window-put w 'animate-move-y (round y))
   (unless animate-move-timer 
     (setq animate-move-timer (make-timer animate-move-timer-handler
-		(quotient animate-move-delay 1000)
-		(mod animate-move-delay 1000)))))
+                                         (quotient animate-move-delay 1000)
+                                         (mod animate-move-delay 1000)))))
 
 (defun next-position (x) 
   (cond 
